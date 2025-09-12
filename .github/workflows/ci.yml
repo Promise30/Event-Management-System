@@ -1,0 +1,94 @@
+---
+name: CI/CD Pipeline
+
+'on':
+  push:
+    branches: [develop, feature/*, hotfix/*]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Display .NET version
+        run: dotnet --version
+
+      - name: Restore dependencies
+        run: |
+          if [ -f "*.sln" ]; then
+            dotnet restore
+          elif find . -name "*.csproj" -print -quit | grep -q .; then
+            dotnet restore
+          else
+            echo "No .NET solution or project files found. Skipping restore."
+          fi
+
+      - name: Build solution
+        run: |
+          if [ -f "*.sln" ]; then
+            dotnet build --no-restore --configuration Release
+          elif find . -name "*.csproj" -print -quit | grep -q .; then
+            dotnet build --no-restore --configuration Release
+          else
+            echo "No .NET solution or project files found. Skipping build."
+            echo "This workflow is ready for when .NET projects are added."
+          fi
+
+      - name: Run tests
+        run: |
+          if find . -name "*Test*.csproj" -o -name "*.Test.csproj" \
+             -o -name "*.Tests.csproj" | grep -q .; then
+            dotnet test --no-build --configuration Release \
+              --logger trx --results-directory TestResults
+          else
+            echo "No test projects found. Skipping tests."
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: TestResults/*.trx
+
+  code-quality:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: |
+          if [ -f "*.sln" ]; then
+            dotnet restore
+          elif find . -name "*.csproj" -print -quit | grep -q .; then
+            dotnet restore
+          else
+            echo "No .NET solution or project files found. Skipping restore."
+          fi
+
+      - name: Run code analysis
+        run: |
+          if find . -name "*.csproj" -print -quit | grep -q .; then
+            dotnet build --configuration Release --verbosity normal
+            echo "Code analysis completed successfully"
+          else
+            echo "No .NET projects found for code analysis."
+          fi
