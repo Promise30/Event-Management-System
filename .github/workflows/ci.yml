@@ -1,7 +1,6 @@
----
 name: CI/CD Pipeline
 
-'on':
+on:
   push:
     branches: [develop, feature/*, hotfix/*]
   pull_request:
@@ -24,31 +23,16 @@ jobs:
         run: dotnet --version
 
       - name: Restore dependencies
-        run: |
-          if [ -f "*.sln" ]; then
-            dotnet restore
-          elif find . -name "*.csproj" -print -quit | grep -q .; then
-            dotnet restore
-          else
-            echo "No .NET solution or project files found. Skipping restore."
-          fi
+        run: dotnet restore **/*.sln
 
       - name: Build solution
-        run: |
-          if [ -f "*.sln" ]; then
-            dotnet build --no-restore --configuration Release
-          elif find . -name "*.csproj" -print -quit | grep -q .; then
-            dotnet build --no-restore --configuration Release
-          else
-            echo "No .NET solution or project files found. Skipping build."
-            echo "This workflow is ready for when .NET projects are added."
-          fi
+        run: dotnet build **/*.sln --no-restore --configuration Release
 
       - name: Run tests
         run: |
           if find . -name "*Test*.csproj" -o -name "*.Test.csproj" \
              -o -name "*.Tests.csproj" | grep -q .; then
-            dotnet test --no-build --configuration Release \
+            dotnet test **/*Test*.csproj --no-build --configuration Release \
               --logger trx --results-directory TestResults
           else
             echo "No test projects found. Skipping tests."
@@ -75,19 +59,12 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Restore dependencies
-        run: |
-          if [ -f "*.sln" ]; then
-            dotnet restore
-          elif find . -name "*.csproj" -print -quit | grep -q .; then
-            dotnet restore
-          else
-            echo "No .NET solution or project files found. Skipping restore."
-          fi
+        run: dotnet restore **/*.sln
 
       - name: Run code analysis
         run: |
           if find . -name "*.csproj" -print -quit | grep -q .; then
-            dotnet build --configuration Release --verbosity normal
+            dotnet build **/*.sln --configuration Release --verbosity normal
             echo "Code analysis completed successfully"
           else
             echo "No .NET projects found for code analysis."
