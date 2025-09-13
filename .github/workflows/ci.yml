@@ -30,10 +30,12 @@ jobs:
 
       - name: Run tests
         run: |
-          if find . -name "*Test*.csproj" -o -name "*.Test.csproj" \
-             -o -name "*.Tests.csproj" | grep -q .; then
-            dotnet test **/*Test*.csproj --no-build --configuration Release \
-              --logger trx --results-directory TestResults
+          TEST_PROJECTS=$(find . -name "*Test*.csproj" -o -name "*.Test.csproj" -o -name "*.Tests.csproj")
+          if [ -n "$TEST_PROJECTS" ]; then
+            for proj in $TEST_PROJECTS; do
+              dotnet test "$proj" --no-build --configuration Release \
+                --logger trx --results-directory TestResults
+            done
           else
             echo "No test projects found. Skipping tests."
           fi
