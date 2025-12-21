@@ -2,13 +2,14 @@
 
 namespace Event_Management_System.API.Domain.Entities
 {
-    public class ApplicationUser : IdentityUser
+    public class ApplicationUser : IdentityUser<Guid>
     {
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Gender { get; set; }
-        public string PhoneNumber { get; set; }
-        public string Address { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string? RefreshToken { get; set; }
+        public DateTimeOffset? RefreshTokenExpiryTime { get; set; }
+        public DateTimeOffset CreatedDate { get; set; }
+        public DateTimeOffset ModifiedDate { get; set; }
 
     }
 }
