@@ -416,3 +416,5 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+/Event_Management_System/.idea/.idea.Event_Management_System/.idea
+/Event_Management_System/Event_Management_System.API/appsettings.Development.json
