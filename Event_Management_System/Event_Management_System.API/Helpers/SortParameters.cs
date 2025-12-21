@@ -5,6 +5,6 @@
         public SortingType SortType { get; set; } = SortingType.Descending;
 
 
-        public string SortMember { get; set; }
+        public string? SortMember { get; set; }
     }
 }
