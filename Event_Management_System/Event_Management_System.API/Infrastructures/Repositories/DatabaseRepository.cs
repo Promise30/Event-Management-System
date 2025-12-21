@@ -11,13 +11,13 @@ namespace Event_Management_System.API.Infrastructures.Repositories
     {
         private readonly ILogger<DatabaseRepository<T, Tkey>> _logger;
 
-        private readonly DbContext _context;
+        private readonly ApplicationDbContext _context;
 
         private readonly DbSet<T> _dbSet;
 
         public Tkey ID { get; set; }
 
-        public DatabaseRepository(DbContext context, ILogger<DatabaseRepository<T, Tkey>> logger)
+        public DatabaseRepository(ApplicationDbContext context, ILogger<DatabaseRepository<T, Tkey>> logger)
         {
             _logger = logger;
             _context = context;
