@@ -1,54 +1,34 @@
 # Event-Management-System
 
-A .NET 8.0 based Event Management System with CI/CD pipeline integration.
+A .NET 9.0 API service-based Event Management System using a University case study.
 
-## 🚀 CI/CD Pipeline
+# Case Study
+In a University setting, there are typically centers that can be booked for various events such as seminars, workshops, and social gatherings. 
+The centers are often used by students, faculty, and external organizations for hosting events.
+These event centers have different capacities, facilities, and availability schedules.
+However, despite the variety of event centers, there is often a lack of a centralized system to manage bookings, track availability, and handle event details efficiently.
+This project aims to develop an Event Management System that addresses these challenges by providing a backend solution to manage event centers, bookings, events and tickets effectively.
+The project supports a robust and rich features which includes:
+- ** Event Center Management**: CRUD operations for event center management
+- ** Booking System**: Allows users to book event centers based on availability
+- ** Event Management**: Create and manage events tied to bookings
+- ** Ticketing System**: Issue and manage tickets for events
+- ** User Roles**: Different roles for organizers and attendees with specific permissions
+- ** Availability Tracking**: Monitor and update the availability of event centers
+- ** Authentication & Authorization**: Secure access to the system based on user roles
+- ** Notifications**: Send notifications for booking confirmations and event updates
+- ** Reporting**: Generate reports on bookings, events, and attendance
+- ** Integration**: Potential integration with calendar systems and payment gateways
+- ** Scalability**: Designed to handle multiple users and events simultaneously
+- ** API Documentation**: Comprehensive documentation for easy integration with front-end applications
+- ** Testing**: Unit and integration tests to ensure system reliability
+- ** CI/CD Pipeline**: Automated build, test, and deployment processes
 
-This repository includes a comprehensive GitHub Actions CI/CD pipeline that ensures code quality and prevents direct merges to the main branch without proper review.
 
-### Pipeline Features
 
-- **✅ .NET 8.0 Support**: Uses the latest .NET version for builds
-- **✅ Automated Building**: Compiles solution/projects automatically
-- **✅ Test Execution**: Runs unit tests when test projects are present
-- **✅ Code Quality Checks**: Performs static analysis and quality validation
-- **✅ Branch Protection**: Enforces review requirements before merging to main
-- **✅ Artifact Upload**: Preserves test results for review
+## Getting Started
 
-### Workflow Triggers
-
-The CI pipeline runs on:
-- **Pull Requests** to `main` and `develop` branches
-- **Pushes** to `develop`, `feature/*`, and `hotfix/*` branches
-
-### Required Status Checks
-
-Before merging to main, the following checks must pass:
-- `build` - Successful compilation
-- `code-quality` - Code analysis validation
-
-## 📋 Branch Protection
-
-This repository implements branch protection rules to ensure code quality:
-
-1. **Pull Request Required**: Direct pushes to main are blocked
-2. **Review Required**: At least 1 approval needed before merge
-3. **Status Checks**: CI pipeline must pass
-4. **Up-to-date Branches**: Branches must be current with main
-
-See [Branch Protection Guide](.github/BRANCH_PROTECTION.md) for detailed setup instructions.
-
-## 🔄 Development Workflow
-
-1. Create feature branches from `develop`
-2. Implement changes and ensure CI passes
-3. Open pull request with proper description
-4. Get approval from code reviewers
-5. Merge after all checks pass
-
-## 🛠️ Getting Started
-
-This repository is ready for .NET 8.0 development. When you add .NET projects:
+This repository is ready for .NET 9.0 development. When you add .NET projects:
 
 1. The CI pipeline will automatically detect and build them
 2. Test projects will be discovered and executed
@@ -56,7 +36,7 @@ This repository is ready for .NET 8.0 development. When you add .NET projects:
 
 ### Prerequisites
 
-- .NET 8.0 SDK
+- .NET 9.0 SDK
 - Git
 - GitHub account with appropriate permissions
 
@@ -80,7 +60,7 @@ dotnet build
 dotnet test
 ```
 
-## 📝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -94,7 +74,7 @@ Please ensure your PR includes:
 - Passing CI checks
 - Proper code review
 
-## 📚 Documentation
+## Documentation
 
 - [Branch Protection Setup](.github/BRANCH_PROTECTION.md)
 - [Pull Request Template](.github/pull_request_template.md)
