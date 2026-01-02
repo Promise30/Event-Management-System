@@ -8,7 +8,7 @@ using System.Net;
 
 namespace Event_Management_System.API.Controllers
 {
-    //[Authorize(Roles = "Administrator,Organizer")]
+    [Authorize(Roles = "Administrator,Organizer")]
     [Authorize]
     [Route("event-centers")]
     [ApiController]
@@ -26,32 +26,32 @@ namespace Event_Management_System.API.Controllers
             var result = await _eventCentreService.GetAllEventCentresAsync(requestParameters);
             return result.StatusCode == HttpStatusCode.OK ? Ok(result) : StatusCode((int)result.StatusCode, result);
         }
-        [HttpGet("get-event-centre")]
-        public async Task<IActionResult> GetById(Guid eventCentreId)
+        [HttpGet("get-event-center")]
+        public async Task<IActionResult> GetById(Guid eventCenterId)
         {
-            var result = await _eventCentreService.GetEventCentreById(eventCentreId);
+            var result = await _eventCentreService.GetEventCentreById(eventCenterId);
             return result.StatusCode == HttpStatusCode.OK ? Ok(result) : StatusCode((int)result.StatusCode, result);
         }
-        [HttpPost("create-event-centre")]
+        [HttpPost("create-event-center")]
         public async Task<IActionResult> Create([FromBody] AddEventCentreDto addEventCentreDto)
         {
             var userId = GetUserId();
             var result = await _eventCentreService.AddEventCentre(userId, addEventCentreDto);
             return result.StatusCode == HttpStatusCode.Created ? CreatedAtAction(nameof(GetById), result.Data) : StatusCode((int)result.StatusCode, result);
         }
-        [HttpPut("update-event-centre")]
-        public async Task<IActionResult> Update(Guid eventCentreId, [FromBody] AddEventCentreDto addEventCentreDto)
+        [HttpPut("update-event-center")]
+        public async Task<IActionResult> Update(Guid eventCenterId, [FromBody] AddEventCentreDto addEventCentreDto)
         {
             var userId = GetUserId();
-            var result = await _eventCentreService.UpdateEventCentreAsync(userId, eventCentreId, addEventCentreDto);
+            var result = await _eventCentreService.UpdateEventCentreAsync(userId, eventCenterId, addEventCentreDto);
             return result.StatusCode == HttpStatusCode.NoContent ? NoContent() : StatusCode((int)result.StatusCode, result);
         }
-        [HttpDelete("delete-event-centre")]
-        public async Task<IActionResult> Delete(Guid eventCentreId)
+        [HttpDelete("delete-event-center")]
+        public async Task<IActionResult> Delete(Guid eventCenterId)
         {
             var userId = GetUserId();
-            var result = await _eventCentreService.DeleteEventCentre(userId, eventCentreId);
-            return result.StatusCode == HttpStatusCode.NoContent? NoContent() : StatusCode((int)result.StatusCode, result);
+            var result = await _eventCentreService.DeleteEventCentre(userId, eventCenterId);
+            return result.StatusCode == HttpStatusCode.NoContent ? NoContent() : StatusCode((int)result.StatusCode, result);
 
         }
         [HttpPut("reactivate-event-center")]

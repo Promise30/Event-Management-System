@@ -68,6 +68,7 @@ namespace Event_Management_System.API.Application
                 .Include(ec => ec.Availabilities)
                 .Include(e => e.Bookings)
                     .ThenInclude(e => e.Event)
+                    .AsSplitQuery()
                 .FirstOrDefaultAsync(e => e.Id == eventCentreId);
             if (eventCentre == null)
                 return APIResponse<EventCentreDto>.Create(HttpStatusCode.NotFound, "Event center does not exist", null, new Error { Message = "Event center does not exist" });
@@ -270,13 +271,44 @@ namespace Event_Management_System.API.Application
             if (user == null)
                 return APIResponse<object>.Create(HttpStatusCode.BadRequest, "User does not exist", null);
             var availability = await _dbContext.Availabilities.FirstOrDefaultAsync(a => a.Id == availabilityId);
+
+            //var availability = await _dbContext.Availabilities.Include(a => a.EventCentre).FirstOrDefaultAsync(a => a.Id == availabilityId);
+            //var availability = await _dbContext.Availabilities.Include(a => a.EventCentre).FirstOrDefaultAsync(a => a.Id == availabilityId);
+
             if (availability == null)
                 return APIResponse<object>.Create(HttpStatusCode.NotFound, "Availability does not exist", null, new Error { Message = "Availability does not exist" });
-            
+
+            if (availabilityDto.CloseTime <= availabilityDto.OpenTime)
+                return APIResponse<object>.Create(HttpStatusCode.BadRequest, "Close time must be after open time", null, new Error { Message = "Close time must be after open time" });
+
+            // Check for duplicate
+            bool isDuplicate = await _dbContext.Availabilities
+                 .AnyAsync(a => a.EventCentreId == availability.EventCentreId  //  Use the foreign key
+                   && a.Id != availabilityId  // Exclude current record
+                   && a.Day == availabilityDto.Day
+                   && a.OpenTime == availabilityDto.OpenTime
+                   && a.CloseTime == availabilityDto.CloseTime);
+
+            if (isDuplicate)
+                return APIResponse<object>.Create(HttpStatusCode.BadRequest, "The specified availability already exists.", null, new Error { Message = "The specified availability already exists." });
+
+            bool isOverlapping = await _dbContext.Availabilities
+                   .AnyAsync(a => a.EventCentreId == availability.EventCentreId  // ← Use the foreign key
+                   && a.Id != availabilityId  // Exclude current record
+                   && a.Day == availabilityDto.Day
+                   && ((availabilityDto.OpenTime >= a.OpenTime && availabilityDto.OpenTime < a.CloseTime)
+                    || (availabilityDto.CloseTime > a.OpenTime && availabilityDto.CloseTime <= a.CloseTime)
+                    || (availabilityDto.OpenTime <= a.OpenTime && availabilityDto.CloseTime >= a.CloseTime)));
+
+            if (isOverlapping)
+                return APIResponse<object>.Create(HttpStatusCode.BadRequest, "The specified availability overlaps with an existing availability.", null, new Error { Message = "The specified availability overlaps with an existing availability." });
+
+            // Update availability
             availability.OpenTime = availabilityDto.OpenTime;
             availability.CloseTime = availabilityDto.CloseTime;
             availability.Day = availabilityDto.Day;
             availability.ModifiedDate = DateTimeOffset.UtcNow;
+
             _dbContext.Availabilities.Update(availability);
             var auditLog = new AuditLog
             {
