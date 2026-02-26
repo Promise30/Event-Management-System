@@ -4,6 +4,7 @@ using Event_Management_System.API.Infrastructures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Event_Management_System.API.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260220155831_UpdatedTicketRelatedEntities")]
+    partial class UpdatedTicketRelatedEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -214,9 +217,6 @@ namespace Event_Management_System.API.Migrations
                     b.Property<DateTime>("BookedTo")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTimeOffset?>("BookingReservationExpiresAt")
-                        .HasColumnType("datetimeoffset");
-
                     b.Property<int>("BookingStatus")
                         .HasColumnType("int");
 
@@ -231,12 +231,6 @@ namespace Event_Management_System.API.Migrations
 
                     b.Property<Guid>("OrganizerId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("PaymentCompletedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("PaymentReference")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -317,10 +311,6 @@ namespace Event_Management_System.API.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal>("PricePerDay")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.HasKey("Id");
 
                     b.ToTable("EventCentres");
@@ -355,45 +345,6 @@ namespace Event_Management_System.API.Migrations
                     b.HasIndex("EventCentreId");
 
                     b.ToTable("Availabilities");
-                });
-
-            modelBuilder.Entity("Event_Management_System.API.Domain.Entities.OrganizerRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AdminNote")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset>("CreatedDate")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset?>("ModifiedDate")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("Reason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTimeOffset?>("ReviewedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("ReviewedByAdminId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReviewedByAdminId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("OrganizerRequests");
                 });
 
             modelBuilder.Entity("Event_Management_System.API.Domain.Entities.Payment", b =>
@@ -442,6 +393,7 @@ namespace Event_Management_System.API.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("ProviderReference")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("ReferenceId")
@@ -768,24 +720,6 @@ namespace Event_Management_System.API.Migrations
                         .IsRequired();
 
                     b.Navigation("EventCentre");
-                });
-
-            modelBuilder.Entity("Event_Management_System.API.Domain.Entities.OrganizerRequest", b =>
-                {
-                    b.HasOne("Event_Management_System.API.Domain.Entities.ApplicationUser", "ReviewedByAdmin")
-                        .WithMany()
-                        .HasForeignKey("ReviewedByAdminId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Event_Management_System.API.Domain.Entities.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ReviewedByAdmin");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Event_Management_System.API.Domain.Entities.Payment", b =>
