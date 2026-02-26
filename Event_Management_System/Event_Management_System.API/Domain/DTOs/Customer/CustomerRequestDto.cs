@@ -1,16 +1,19 @@
-﻿
+using System.Text.Json.Serialization;
+
 namespace Event_Management_System.API.Domain.DTOs.Customer
 {
+    /// <summary>
+    /// Request DTO for creating a customer on Flutterwave
+    /// </summary>
     public class CustomerRequestDto
     {
-        public Address address { get; set; }
-        public Name name { get; set; }
-        public Phone phone { get; set; }
-        public string email { get; set; }
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [JsonPropertyName("phone_number")]
+        public string? PhoneNumber { get; set; }
     }
 }
-/*
---header 'Authorization: Bearer {{YOUR_ACCESS_TOKEN}}' \
---header 'Content-Type: application/json' \
---header 'X-Trace-Id: {{YOUR_UNIQUE_TRACE_ID}}' 
-*/

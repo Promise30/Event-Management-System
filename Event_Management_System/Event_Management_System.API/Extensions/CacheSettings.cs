@@ -1,4 +1,5 @@
-﻿using Event_Management_System.API.Application;
+﻿using Event_Management_System.API.Application.Implementation;
+using Event_Management_System.API.Application.Interfaces;
 
 namespace Event_Management_System.API.Extensions
 {

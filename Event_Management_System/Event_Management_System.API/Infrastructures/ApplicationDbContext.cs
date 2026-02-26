@@ -18,7 +18,8 @@ namespace Event_Management_System.API.Infrastructures
         public DbSet<EventCentreAvailability> Availabilities { get; set; } = null!;
         public DbSet<Ticket> Tickets { get; set; } = null!;
         public DbSet<TicketType> TicketTypes { get; set; } = null!;
-       // public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<OrganizerRequest> OrganizerRequests { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -32,6 +33,11 @@ namespace Event_Management_System.API.Infrastructures
                 .HasForeignKey(b => b.EventCentreId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // EventCentre PricePerDay precision
+            builder.Entity<EventCentre>()
+                .Property(ec => ec.PricePerDay)
+                .HasPrecision(18, 2);
+
             // Event & Ticket (1:M)
             builder.Entity<Event>()
                 .HasMany(e => e.TicketTypes)
@@ -39,12 +45,12 @@ namespace Event_Management_System.API.Infrastructures
                 .HasForeignKey(e => e.EventId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Booking & Event (1:1)
-            builder.Entity<Booking>()
-                .HasOne(e => e.Event)
-                .WithOne(b => b.Booking)
-                .HasForeignKey<Event>(e => e.BookingId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //// Booking & Event (1:1)
+            //builder.Entity<Booking>()
+            //    .HasOne(e => e.Event)
+            //    .WithOne(b => b.Booking)
+            //    .HasForeignKey<Event>(e => e.BookingId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
             // Booking & Organizer
             builder.Entity<Booking>()
@@ -70,20 +76,34 @@ namespace Event_Management_System.API.Infrastructures
                 .Property(tt => tt.Price)
                 .HasPrecision(18, 2);
 
-            //// Payment relationships
-            //builder.Entity<Payment>()
-            //    .HasOne(p => p.User)
-            //    .WithMany()
-            //    .HasForeignKey(p => p.UserId)
-            //    .OnDelete(DeleteBehavior.Restrict);
+            // Payment relationships
+            builder.Entity<Payment>()
+                .HasOne(p => p.User)
+                .WithMany()
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            //builder.Entity<Payment>()
-            //    .Property(p => p.Amount)
-            //    .HasPrecision(18, 2);
+            builder.Entity<Payment>()
+                .Property(p => p.Amount)
+                .HasPrecision(18, 2);
 
-            //builder.Entity<Payment>()
-            //    .HasIndex(p => p.TransactionReference)
-            //    .IsUnique();
+            builder.Entity<Payment>()
+                .HasIndex(p => p.TransactionReference)
+                .IsUnique();
+
+            // OrganizerRequest relationships
+            builder.Entity<OrganizerRequest>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<OrganizerRequest>()
+                .HasOne(r => r.ReviewedByAdmin)
+                .WithMany()
+                .HasForeignKey(r => r.ReviewedByAdminId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
 
 
             var adminRole = new IdentityRole<Guid>
@@ -181,3 +201,8 @@ namespace Event_Management_System.API.Infrastructures
         }
     }
 }
+
+//{
+//    "email": "admin@gmail.com",
+//  "password": "Admin@123"
+//}

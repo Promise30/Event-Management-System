@@ -4,14 +4,14 @@ namespace Event_Management_System.API.Helpers
 {
     public class APIResponse<T>
     {
-        public HttpStatusCode StatusCode { get; set; }
+        public int StatusCode { get; set; }
         public string StatusMessage { get; set; }
         public T Data { get; set; }
         public Error Error { get; set; }
 
         public APIResponse(HttpStatusCode statusCode, string message, T data, Error error = null)
         {
-            StatusCode = statusCode;
+            StatusCode = (int)statusCode;
             StatusMessage = message;
             Data = data;
             Error = error;

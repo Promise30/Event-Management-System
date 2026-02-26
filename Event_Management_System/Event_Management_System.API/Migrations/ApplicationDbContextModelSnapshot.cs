@@ -214,6 +214,9 @@ namespace Event_Management_System.API.Migrations
                     b.Property<DateTime>("BookedTo")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTimeOffset?>("BookingReservationExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<int>("BookingStatus")
                         .HasColumnType("int");
 
@@ -223,14 +226,17 @@ namespace Event_Management_System.API.Migrations
                     b.Property<Guid>("EventCentreId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<Guid>("OrganizerId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("PaymentCompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PaymentReference")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -277,8 +283,7 @@ namespace Event_Management_System.API.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BookingId")
-                        .IsUnique();
+                    b.HasIndex("BookingId");
 
                     b.ToTable("Events");
                 });
@@ -311,6 +316,10 @@ namespace Event_Management_System.API.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("PricePerDay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -348,6 +357,116 @@ namespace Event_Management_System.API.Migrations
                     b.ToTable("Availabilities");
                 });
 
+            modelBuilder.Entity("Event_Management_System.API.Domain.Entities.OrganizerRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AdminNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedDate")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ModifiedDate")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ReviewedByAdminId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewedByAdminId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("OrganizerRequests");
+                });
+
+            modelBuilder.Entity("Event_Management_System.API.Domain.Entities.Payment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedDate")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CustomerEmail")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Metadata")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("ModifiedDate")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("PaidAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("PaymentType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProviderReference")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ReferenceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TransactionReference")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TransactionReference")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Payments");
+                });
+
             modelBuilder.Entity("Event_Management_System.API.Domain.Entities.Ticket", b =>
                 {
                     b.Property<Guid>("Id")
@@ -363,8 +482,14 @@ namespace Event_Management_System.API.Migrations
                     b.Property<DateTimeOffset?>("ModifiedDate")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<DateTimeOffset?>("PaymentCompletedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("PaymentReference")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset?>("ReservationExpiresAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -422,6 +547,9 @@ namespace Event_Management_System.API.Migrations
 
                     b.Property<DateTime?>("SaleStartDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("SoldCount")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -623,8 +751,8 @@ namespace Event_Management_System.API.Migrations
             modelBuilder.Entity("Event_Management_System.API.Domain.Entities.Event", b =>
                 {
                     b.HasOne("Event_Management_System.API.Domain.Entities.Booking", "Booking")
-                        .WithOne("Event")
-                        .HasForeignKey("Event_Management_System.API.Domain.Entities.Event", "BookingId")
+                        .WithMany()
+                        .HasForeignKey("BookingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -640,6 +768,35 @@ namespace Event_Management_System.API.Migrations
                         .IsRequired();
 
                     b.Navigation("EventCentre");
+                });
+
+            modelBuilder.Entity("Event_Management_System.API.Domain.Entities.OrganizerRequest", b =>
+                {
+                    b.HasOne("Event_Management_System.API.Domain.Entities.ApplicationUser", "ReviewedByAdmin")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByAdminId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Event_Management_System.API.Domain.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ReviewedByAdmin");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Event_Management_System.API.Domain.Entities.Payment", b =>
+                {
+                    b.HasOne("Event_Management_System.API.Domain.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Event_Management_System.API.Domain.Entities.Ticket", b =>
@@ -720,12 +877,6 @@ namespace Event_Management_System.API.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Event_Management_System.API.Domain.Entities.Booking", b =>
-                {
-                    b.Navigation("Event")
                         .IsRequired();
                 });
 
