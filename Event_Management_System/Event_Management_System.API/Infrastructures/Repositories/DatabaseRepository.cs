@@ -1,5 +1,4 @@
-﻿using Event_Management_System.API.Domain.DTOs;
-using Event_Management_System.API.Domain.Entities;
+﻿using Event_Management_System.API.Domain.Entities;
 using Event_Management_System.API.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -48,9 +47,13 @@ namespace Event_Management_System.API.Infrastructures.Repositories
             return await PagedList<T>.ToPagedList(source, filter, parameter);
         }
 
-        public async Task<PagedList<T>> GetAllPaginatedAsync(RequestParameters parameter, List<T> entity, Expression<Func<T, bool>> filter = null)
+        //public async Task<PagedList<T>> GetAllPaginatedAsync(RequestParameters parameter, List<T> entity, Expression<Func<T, bool>> filter = null)
+        //{
+        //    return await PagedList<T>.ToPagedListAsync(entity, parameter);
+        //}
+        public async Task<PagedList<T>> GetAllPaginatedAsync(IQueryable<T> query, RequestParameters parameter, Expression<Func<T, bool>> filter = null)
         {
-            return await PagedList<T>.ToPagedListAsync(entity, parameter);
+            return await PagedList<T>.ToPagedList(query.AsNoTracking(), filter, parameter);
         }
 
         public async Task<IEnumerable<T>> GetAllAsync(Expression<Func<T, bool>> filter, params Expression<Func<T, object>>[] includeProperties)
