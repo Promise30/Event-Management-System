@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
-using Event_Management_System.API.Application;
-using Event_Management_System.API.Domain.DTOs;
+using Event_Management_System.API.Application.Implementation;
+using Event_Management_System.API.Domain.DTOs.EventCenter;
 using Event_Management_System.API.Domain.Entities;
+using Event_Management_System.API.Helpers;
 using Event_Management_System.API.Infrastructures;
+using Event_Management_System.API.Infrastructures.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -19,6 +21,7 @@ namespace Event_Management_System.Tests.EventCentreTests
         private ApplicationDbContext _dbContext;
         private Mock<UserManager<ApplicationUser>> _userManagerMock;
         private Mock<IMapper> _mapperMock;
+        private Mock<IDatabaseRepository<EventCentre, Guid>> _databaseRepositoryMock;
 
         [SetUp]
         public void Setup()
@@ -32,11 +35,13 @@ namespace Event_Management_System.Tests.EventCentreTests
             _userManagerMock = new Mock<UserManager<ApplicationUser>>(
                 store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
             _mapperMock = new Mock<IMapper>();
+                _databaseRepositoryMock = new Mock<IDatabaseRepository<EventCentre, Guid>>();
             _eventCentreService = new EventCentreService(
                 _loggerMock.Object,
                 _dbContext,
                 _userManagerMock.Object,
-                _mapperMock.Object
+                _mapperMock.Object,
+                _databaseRepositoryMock.Object
             );  
         }
 
@@ -81,7 +86,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.AddEventCentre(userId, addEventCentreDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.Created));
             Assert.That(response.StatusMessage, Is.EqualTo("Request successful"));
             Assert.That(response.Data, Is.Not.Null);
             var eventCentre = response.Data as EventCentreDto;
@@ -110,7 +115,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.AddEventCentre(userId, addEventCentreDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
             Assert.That(response.StatusMessage, Is.EqualTo("User does not exist"));
             Assert.That(response.Data, Is.Null);
             Assert.That(await _dbContext.EventCentres.CountAsync(), Is.EqualTo(0));
@@ -153,7 +158,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.GetEventCentreById(eventCentreId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
             Assert.That(response.StatusMessage, Is.EqualTo("Request successful"));
             Assert.That(response.Data, Is.Not.Null);
             Assert.That(response.Data.Id, Is.EqualTo(eventCentreId));
@@ -170,7 +175,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.GetEventCentreById(eventCentreId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotFound));
             Assert.That(response.StatusMessage, Is.EqualTo("Event center does not exist"));
             Assert.That(response.Data, Is.Null);
         }
@@ -206,7 +211,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.GetAllEventCentresAsync(requestParameters);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
             Assert.That(response.StatusMessage, Is.EqualTo("Request successful"));
             Assert.That(response.Data, Is.Not.Null);
             Assert.That(response.Data.Data.Count, Is.EqualTo(2)); // Only active ones
@@ -223,7 +228,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.GetAllEventCentresAsync(requestParameters);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
             Assert.That(response.StatusMessage, Is.EqualTo("No event centres found"));
             Assert.That(response.Data.Data.Count, Is.EqualTo(0));
         }
@@ -265,7 +270,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.UpdateEventCentreAsync(userId, eventCentreId, updateDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NoContent));
             Assert.That(response.StatusMessage, Is.EqualTo("Request Successful"));
             
             var updatedEventCentre = await _dbContext.EventCentres.FindAsync(eventCentreId);
@@ -296,7 +301,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.UpdateEventCentreAsync(userId, eventCentreId, updateDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
             Assert.That(response.StatusMessage, Is.EqualTo("User does not exist"));
         }
 
@@ -322,7 +327,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.UpdateEventCentreAsync(userId, eventCentreId, updateDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotFound));
             Assert.That(response.StatusMessage, Is.EqualTo("Event centre does not exist"));
         }
         #endregion
@@ -354,7 +359,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.DeleteEventCentre(userId, eventCentreId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NoContent));
             Assert.That(response.StatusMessage, Is.EqualTo("Request Successful"));
             
             var deletedEventCentre = await _dbContext.EventCentres.FindAsync(eventCentreId);
@@ -377,7 +382,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.DeleteEventCentre(userId, eventCentreId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
             Assert.That(response.StatusMessage, Is.EqualTo("User does not exist"));
         }
 
@@ -397,7 +402,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.DeleteEventCentre(userId, eventCentreId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotFound));
             Assert.That(response.StatusMessage, Is.EqualTo("Event centre does not exist"));
         }
         #endregion
@@ -429,7 +434,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.ReactivateEventCentre(userId, eventCentreId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NoContent));
             Assert.That(response.StatusMessage, Is.EqualTo("Request Successful"));
             
             var reactivatedEventCentre = await _dbContext.EventCentres.FindAsync(eventCentreId);
@@ -452,7 +457,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.ReactivateEventCentre(userId, eventCentreId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
             Assert.That(response.StatusMessage, Is.EqualTo("User does not exist"));
         }
 
@@ -472,7 +477,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.ReactivateEventCentre(userId, eventCentreId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotFound));
             Assert.That(response.StatusMessage, Is.EqualTo("Event center does not exist"));
         }
         #endregion
@@ -500,31 +505,53 @@ namespace Event_Management_System.Tests.EventCentreTests
                 .Setup(um => um.FindByIdAsync(userId.ToString()))
                 .ReturnsAsync(user);
 
-            var availabilityDto = new AddEventCentreAvailabilityDto
+            var availabilityDto = new List<AddEventCentreAvailabilityDto>
             {
+                new AddEventCentreAvailabilityDto
+                {
+
                 EventCentreId = eventCentreId,
                 Day = DayOfWeek.Monday,
                 OpenTime = new TimeSpan(9, 0, 0),
                 CloseTime = new TimeSpan(17, 0, 0)
-            };
+            },
+                new AddEventCentreAvailabilityDto
+                {
 
-            var mappedDto = new EventCentreAvailabilityDto
-            {
-                Id = Guid.NewGuid(),
-                Day = "Monday",
-                OpenTime = availabilityDto.OpenTime,
-                CloseTime = availabilityDto.CloseTime
+                EventCentreId = eventCentreId,
+                Day = DayOfWeek.Tuesday,
+                OpenTime = new TimeSpan(9, 0, 0),
+                CloseTime = new TimeSpan(17, 0, 0)
+            }
+            };
+            
+
+            var mappedDto = new List<EventCentreAvailabilityDto>{
+                new EventCentreAvailabilityDto
+                {
+                    Id = Guid.NewGuid(),
+                    Day = "Monday",
+                    OpenTime = availabilityDto[0].OpenTime,
+                    CloseTime = availabilityDto[0].CloseTime
+                },
+                new EventCentreAvailabilityDto
+                {
+                    Id = Guid.NewGuid(),
+                    Day = "Tuesday",
+                    OpenTime = availabilityDto[1].OpenTime,
+                    CloseTime = availabilityDto[1].CloseTime
+                }
             };
 
             _mapperMock
-                .Setup(m => m.Map<EventCentreAvailabilityDto>(It.IsAny<EventCentreAvailability>()))
+                .Setup(m => m.Map<List<EventCentreAvailabilityDto>>(It.IsAny<List<EventCentreAvailability>>()))
                 .Returns(mappedDto);
 
             // Act
             var response = await _eventCentreService.AddEventCentreAvailability(userId, availabilityDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.Created));
             Assert.That(response.StatusMessage, Is.EqualTo("Request successful"));
             Assert.That(await _dbContext.Availabilities.CountAsync(), Is.EqualTo(1));
             Assert.That(await _dbContext.AuditLogs.CountAsync(), Is.EqualTo(1));
@@ -535,12 +562,14 @@ namespace Event_Management_System.Tests.EventCentreTests
         {
             // Arrange
             var userId = Guid.NewGuid();
-            var availabilityDto = new AddEventCentreAvailabilityDto
-            {
-                EventCentreId = Guid.NewGuid(),
-                Day = DayOfWeek.Monday,
-                OpenTime = new TimeSpan(9, 0, 0),
-                CloseTime = new TimeSpan(17, 0, 0)
+            var availabilityDto = new List<AddEventCentreAvailabilityDto> {
+                new AddEventCentreAvailabilityDto
+                {
+                    EventCentreId = Guid.NewGuid(),
+                    Day = DayOfWeek.Monday,
+                    OpenTime = new TimeSpan(9, 0, 0),
+                    CloseTime = new TimeSpan(17, 0, 0)
+                }
             };
 
             _userManagerMock
@@ -551,7 +580,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.AddEventCentreAvailability(userId, availabilityDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
             Assert.That(response.StatusMessage, Is.EqualTo("User does not exist"));
         }
 
@@ -561,13 +590,13 @@ namespace Event_Management_System.Tests.EventCentreTests
             // Arrange
             var userId = Guid.NewGuid();
             var user = new ApplicationUser { Id = userId, UserName = "organizer@test.com" };
-            var availabilityDto = new AddEventCentreAvailabilityDto
-            {
+            var availabilityDto = new List<AddEventCentreAvailabilityDto> {
+            new AddEventCentreAvailabilityDto{
                 EventCentreId = Guid.NewGuid(),
                 Day = DayOfWeek.Monday,
                 OpenTime = new TimeSpan(9, 0, 0),
                 CloseTime = new TimeSpan(17, 0, 0)
-            };
+            }};
 
             _userManagerMock
                 .Setup(um => um.FindByIdAsync(userId.ToString()))
@@ -577,7 +606,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.AddEventCentreAvailability(userId, availabilityDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotFound));
             Assert.That(response.StatusMessage, Is.EqualTo("Event centre does not exist"));
         }
 
@@ -611,19 +640,19 @@ namespace Event_Management_System.Tests.EventCentreTests
                 .Setup(um => um.FindByIdAsync(userId.ToString()))
                 .ReturnsAsync(user);
 
-            var availabilityDto = new AddEventCentreAvailabilityDto
-            {
+            var availabilityDto = new List<AddEventCentreAvailabilityDto> {
+            new AddEventCentreAvailabilityDto{
                 EventCentreId = eventCentreId,
                 Day = DayOfWeek.Monday,
                 OpenTime = new TimeSpan(9, 0, 0),
                 CloseTime = new TimeSpan(17, 0, 0)
-            };
+            }};
 
             // Act
             var response = await _eventCentreService.AddEventCentreAvailability(userId, availabilityDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
             Assert.That(response.StatusMessage, Is.EqualTo("The specified availability already exists."));
         }
 
@@ -657,19 +686,20 @@ namespace Event_Management_System.Tests.EventCentreTests
                 .Setup(um => um.FindByIdAsync(userId.ToString()))
                 .ReturnsAsync(user);
 
-            var availabilityDto = new AddEventCentreAvailabilityDto
+            var availabilityDto = new List<AddEventCentreAvailabilityDto>
             {
+                new AddEventCentreAvailabilityDto{
                 EventCentreId = eventCentreId,
                 Day = DayOfWeek.Monday,
                 OpenTime = new TimeSpan(10, 0, 0),  // Overlaps with 9:00-17:00
                 CloseTime = new TimeSpan(18, 0, 0)
-            };
+            } };
 
             // Act
             var response = await _eventCentreService.AddEventCentreAvailability(userId, availabilityDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
             Assert.That(response.StatusMessage, Is.EqualTo("The specified availability overlaps with an existing availability."));
         }
         #endregion
@@ -719,7 +749,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.UpdateEventCentreAvailability(userId, availabilityId, updateDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NoContent));
             Assert.That(response.StatusMessage, Is.EqualTo("Request Successful"));
             
             var updatedAvailability = await _dbContext.Availabilities.FindAsync(availabilityId);
@@ -750,7 +780,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.UpdateEventCentreAvailability(userId, availabilityId, updateDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
             Assert.That(response.StatusMessage, Is.EqualTo("User does not exist"));
         }
 
@@ -776,7 +806,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.UpdateEventCentreAvailability(userId, availabilityId, updateDto);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotFound));
             Assert.That(response.StatusMessage, Is.EqualTo("Availability does not exist"));
         }
         #endregion
@@ -819,7 +849,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.DeleteEventCentreAvailability(userId, availabilityId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NoContent));
             Assert.That(response.StatusMessage, Is.EqualTo("Request Successful"));
             Assert.That(await _dbContext.Availabilities.CountAsync(), Is.EqualTo(0));
             Assert.That(await _dbContext.AuditLogs.CountAsync(), Is.EqualTo(1));
@@ -840,7 +870,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.DeleteEventCentreAvailability(userId, availabilityId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
             Assert.That(response.StatusMessage, Is.EqualTo("User does not exist"));
         }
 
@@ -860,7 +890,7 @@ namespace Event_Management_System.Tests.EventCentreTests
             var response = await _eventCentreService.DeleteEventCentreAvailability(userId, availabilityId);
 
             // Assert
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotFound));
             Assert.That(response.StatusMessage, Is.EqualTo("Availability does not exist"));
         }
         #endregion
