@@ -27,7 +27,7 @@ namespace Event_Management_System.API.Domain.Entities
         /// <summary>
         /// Provider's transaction reference
         /// </summary>
-        public string ProviderReference { get; set; }
+        public string? ProviderReference { get; set; }
 
         /// <summary>
         /// Payment type (Booking or Ticket)

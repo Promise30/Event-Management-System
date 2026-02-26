@@ -1,5 +1,4 @@
-﻿using Event_Management_System.API.Domain.DTOs;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
 namespace Event_Management_System.API.Helpers

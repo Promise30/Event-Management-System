@@ -6,8 +6,8 @@ namespace Event_Management_System.API.Domain.Entities
     [DebuggerDisplay("Booking {Id}: {EventId} at {EventCentreId} from {BookedFrom} to {BookedTo}")]
     public class Booking : BaseEntity<Guid>
     {
-        public Guid EventId { get; set; }
-        public Event Event { get; set; } = null!;
+        //public Guid EventId { get; set; }
+        //public Event Event { get; set; } = null!;
 
         // Event centre reserved
         public Guid EventCentreId { get; set; }
@@ -20,6 +20,9 @@ namespace Event_Management_System.API.Domain.Entities
         public Guid OrganizerId { get; set; }
         public ApplicationUser Organizer { get; set; }
         public BookingStatus BookingStatus { get; set; } = BookingStatus.Submitted;
+        public string? PaymentReference { get; set; } // for paid bookings
+        public DateTimeOffset? BookingReservationExpiresAt { get; set; }
+        public DateTimeOffset? PaymentCompletedAt { get; set; }
     }
 }
 
