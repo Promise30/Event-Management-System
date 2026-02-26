@@ -1,5 +1,4 @@
 ﻿using Event_Management_System.API.Application.Interfaces;
-using Event_Management_System.API.Domain.DTOs;
 using Event_Management_System.API.Domain.DTOs.Customer;
 using Event_Management_System.API.Domain.DTOs.Payment;
 using Event_Management_System.API.Helpers;
