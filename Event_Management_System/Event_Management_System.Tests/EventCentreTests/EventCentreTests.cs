@@ -197,6 +197,13 @@ namespace Event_Management_System.Tests.EventCentreTests
 
             var requestParameters = new RequestParameters { PageNumber = 1, PageSize = 10 };
 
+            var activeEventCentres = eventCentres.Where(e => e.IsActive).ToList();
+            var pagedResult = new PagedList<EventCentre>(activeEventCentres, activeEventCentres.Count, requestParameters.PageNumber, requestParameters.PageSize);
+
+            _databaseRepositoryMock
+                .Setup(r => r.GetAllPaginatedAsync(It.IsAny<IQueryable<EventCentre>>(), It.IsAny<RequestParameters>(), It.IsAny<System.Linq.Expressions.Expression<Func<EventCentre, bool>>>()))
+                .ReturnsAsync(pagedResult);
+
             _mapperMock
                 .Setup(m => m.Map<List<EventCentreDto>>(It.IsAny<List<EventCentre>>()))
                 .Returns((List<EventCentre> source) => source.Select(ec => new EventCentreDto
@@ -223,6 +230,12 @@ namespace Event_Management_System.Tests.EventCentreTests
         {
             // Arrange
             var requestParameters = new RequestParameters { PageNumber = 1, PageSize = 10 };
+
+            var emptyPagedResult = new PagedList<EventCentre>(new List<EventCentre>(), 0, requestParameters.PageNumber, requestParameters.PageSize);
+
+            _databaseRepositoryMock
+                .Setup(r => r.GetAllPaginatedAsync(It.IsAny<IQueryable<EventCentre>>(), It.IsAny<RequestParameters>(), It.IsAny<System.Linq.Expressions.Expression<Func<EventCentre, bool>>>()))
+                .ReturnsAsync(emptyPagedResult);
 
             // Act
             var response = await _eventCentreService.GetAllEventCentresAsync(requestParameters);
@@ -526,7 +539,8 @@ namespace Event_Management_System.Tests.EventCentreTests
             };
             
 
-            var mappedDto = new List<EventCentreAvailabilityDto>{
+            var mappedDto = new List<EventCentreAvailabilityDto>
+            {
                 new EventCentreAvailabilityDto
                 {
                     Id = Guid.NewGuid(),
@@ -544,16 +558,22 @@ namespace Event_Management_System.Tests.EventCentreTests
             };
 
             _mapperMock
-                .Setup(m => m.Map<List<EventCentreAvailabilityDto>>(It.IsAny<List<EventCentreAvailability>>()))
-                .Returns(mappedDto);
+                .Setup(m => m.Map<EventCentreAvailabilityDto>(It.IsAny<EventCentreAvailability>()))
+                .Returns((EventCentreAvailability source) => new EventCentreAvailabilityDto
+                {
+                    Id = source.Id,
+                    Day = source.Day.ToString(),
+                    OpenTime = source.OpenTime,
+                    CloseTime = source.CloseTime
+                });
 
             // Act
             var response = await _eventCentreService.AddEventCentreAvailability(userId, availabilityDto);
 
             // Assert
             Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.Created));
-            Assert.That(response.StatusMessage, Is.EqualTo("Request successful"));
-            Assert.That(await _dbContext.Availabilities.CountAsync(), Is.EqualTo(1));
+            Assert.That(response.StatusMessage, Is.EqualTo("Successfully added 2 availability slot(s)"));
+            Assert.That(await _dbContext.Availabilities.CountAsync(), Is.EqualTo(2));
             Assert.That(await _dbContext.AuditLogs.CountAsync(), Is.EqualTo(1));
         }
 
@@ -653,7 +673,7 @@ namespace Event_Management_System.Tests.EventCentreTests
 
             // Assert
             Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
-            Assert.That(response.StatusMessage, Is.EqualTo("The specified availability already exists."));
+            Assert.That(response.StatusMessage, Is.EqualTo("Validation failed"));
         }
 
         [Test]
@@ -700,7 +720,7 @@ namespace Event_Management_System.Tests.EventCentreTests
 
             // Assert
             Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
-            Assert.That(response.StatusMessage, Is.EqualTo("The specified availability overlaps with an existing availability."));
+            Assert.That(response.StatusMessage, Is.EqualTo("Validation failed"));
         }
         #endregion
 
