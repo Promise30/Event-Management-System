@@ -1,6 +1,11 @@
-using Event_Management_System.API.Application;
+using Event_Management_System.API.Application.BackgroundServices;
+using Event_Management_System.API.Application.Exceptions;
+using Event_Management_System.API.Application.Implementation;
+using Event_Management_System.API.Application.Interfaces;
+using Event_Management_System.API.Application.Payments;
 using Event_Management_System.API.Domain.Entities;
 using Event_Management_System.API.Extensions;
+using Event_Management_System.API.Helpers;
 using Event_Management_System.API.Infrastructures;
 using Event_Management_System.API.Infrastructures.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
+using PayStack.Net;
 using Serilog;
 using System.Reflection;
 using System.Text;
@@ -72,15 +78,22 @@ builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
+builder.Services.AddScoped<IOrganizerRequestService, OrganizerRequestService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
+// Background Services
+builder.Services.AddHostedService<ExpireReservedTicketsService>();
+builder.Services.AddHostedService<ExpireReservedBookingService>();
 
-// Payment providers
-//builder.Services.AddScoped<Event_Management_System.API.Application.Payments.IPaymentProvider, Event_Management_System.API.Infrastructure.Payments.FlutterwavePaymentProvider>();
-//builder.Services.AddScoped<Event_Management_System.API.Application.Payments.IPaymentProvider, Event_Management_System.API.Infrastructure.Payments.PaystackPaymentProvider>();
-//builder.Services.AddScoped<Event_Management_System.API.Application.Payments.IPaymentService, Event_Management_System.API.Application.Payments.PaymentService>();
+// Paystack payment integration
+var paystackSecretKey = configuration["PayStack:SecretKey"]
+    ?? throw new InvalidOperationException("PayStack:SecretKey is not configured");
+builder.Services.AddSingleton(new PayStackApi(paystackSecretKey));
+builder.Services.AddScoped<IPaymentService, PaystackPaymentService>();
+
+builder.Services.Configure<JwtSettings>(configuration.GetSection(nameof(JwtSettings)));
 
 builder.Services.AddScoped(typeof(IDatabaseRepository<,>), typeof(DatabaseRepository<,>));
-
 
 builder.Services.AddAuthentication(options =>
 {
@@ -184,6 +197,8 @@ try
     app.UseHttpsRedirection();
 
     app.UseRouting();
+    app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 
     app.UseAuthentication();
 
