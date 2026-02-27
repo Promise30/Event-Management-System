@@ -7,6 +7,8 @@ using Event_Management_System.API.Infrastructures;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
+using Event_Management_System.API.Domain.DTOs;
+using Hangfire;
 
 namespace Event_Management_System.API.Application.Implementation
 {
@@ -16,17 +18,20 @@ namespace Event_Management_System.API.Application.Implementation
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly ILogger<OrganizerRequestService> _logger;
+        private readonly INotificationService _notificationService;
 
         public OrganizerRequestService(
             ApplicationDbContext dbContext,
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole<Guid>> roleManager,
-            ILogger<OrganizerRequestService> logger)
+            ILogger<OrganizerRequestService> logger,
+            INotificationService notificationService)
         {
             _dbContext = dbContext;
             _userManager = userManager;
             _roleManager = roleManager;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         /// <inheritdoc/>
@@ -170,6 +175,20 @@ namespace Event_Management_System.API.Application.Implementation
 
             _logger.LogInformation("Admin {AdminId} approved organizer request {RequestId} for user {Email}", adminUserId, requestId, user.Email);
 
+            // Send organizer request approval notification
+            var approvalNotification = new NotificationRequest
+            {
+                Channels = new[] { NotificationChannel.Email },
+                Type = NotificationType.OrganizerRequestApproved,
+                RecipientEmail = user.Email,
+                RecipientName = $"{user.FirstName} {user.LastName}",
+                Data = new Dictionary<string, string>
+                {
+                    { "FirstName", user.FirstName }
+                }
+            };
+            BackgroundJob.Enqueue(() => _notificationService.SendAsync(approvalNotification));
+
             var response = MapToDto(request, user);
             return APIResponse<OrganizerRequestDto>.Create(HttpStatusCode.OK, "Organizer request approved successfully", response);
         }
@@ -211,6 +230,21 @@ namespace Event_Management_System.API.Application.Implementation
             await _dbContext.SaveChangesAsync();
 
             _logger.LogInformation("Admin {AdminId} rejected organizer request {RequestId} for user {Email}", adminUserId, requestId, request.User.Email);
+
+            // Send organizer request rejection notification
+            var rejectionNotification = new NotificationRequest
+            {
+                Channels = new[] { NotificationChannel.Email },
+                Type = NotificationType.OrganizerRequestRejected,
+                RecipientEmail = request.User.Email,
+                RecipientName = $"{request.User.FirstName} {request.User.LastName}",
+                Data = new Dictionary<string, string>
+                {
+                    { "FirstName", request.User.FirstName },
+                    { "Reason", dto.AdminNote ?? "Your request did not meet the requirements" }
+                }
+            };
+            BackgroundJob.Enqueue(() => _notificationService.SendAsync(rejectionNotification));
 
             var response = MapToDto(request, request.User);
             return APIResponse<OrganizerRequestDto>.Create(HttpStatusCode.OK, "Organizer request rejected", response);

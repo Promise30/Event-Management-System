@@ -12,6 +12,7 @@ namespace Event_Management_System.API.Application.Interfaces
         Task<APIResponse<object>> GetAvailableEventCentres(DateTime bookedFrom, DateTime bookedTo);
         Task<APIResponse<object>> GetBookingById(Guid bookingId);
         Task<APIResponse<object>> GetBookingsByUser(Guid userId);
-        Task<APIResponse<object>> UpdateBookingStatus(Guid userId, BookingStatus bookingStatus, Guid bookingId);
+        Task<APIResponse<object>> UpdateBookingStatusByAdmin(Guid userId, BookingStatus bookingStatus, Guid bookingId);
+        Task<APIResponse<object>> CancelBookingAsync(Guid userId, Guid bookingId);
     }
 }

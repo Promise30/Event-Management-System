@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Event_Management_System.API.Application.Interfaces;
 using Event_Management_System.API.Application.Payments;
+using Event_Management_System.API.Domain.DTOs;
 using Event_Management_System.API.Domain.DTOs.Booking;
 using Event_Management_System.API.Domain.DTOs.EventCenter;
 using Event_Management_System.API.Domain.DTOs.Payment;
@@ -8,6 +9,7 @@ using Event_Management_System.API.Domain.Entities;
 using Event_Management_System.API.Domain.Enums;
 using Event_Management_System.API.Helpers;
 using Event_Management_System.API.Infrastructures;
+using Hangfire;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
@@ -30,14 +32,16 @@ namespace Event_Management_System.API.Application.Implementation
         private readonly ILogger<BookingService> _logger;
         private readonly IMapper _mapper;
         private readonly IPaymentService _paymentService;
+        private readonly INotificationService _notificationService;
 
-        public BookingService(ApplicationDbContext dbContext, ILogger<BookingService> logger, IMapper mapper, UserManager<ApplicationUser> userManager, IPaymentService paymentService)
+        public BookingService(ApplicationDbContext dbContext, ILogger<BookingService> logger, IMapper mapper, UserManager<ApplicationUser> userManager, IPaymentService paymentService, INotificationService notificationService)
         {
             _dbContext = dbContext;
             _logger = logger;
             _mapper = mapper;
             _userManager = userManager;
             _paymentService = paymentService;
+            _notificationService = notificationService;
         }
         public async Task<APIResponse<CreateBookingResponseDto>> CreateBooking(Guid userId, CreateBookingDto createBookingDto)
         {
@@ -175,6 +179,23 @@ namespace Event_Management_System.API.Application.Implementation
                 // Free booking
                 await transaction.CommitAsync();
 
+                // Send booking submitted notification for free bookings
+                var submissionNotification = new NotificationRequest
+                {
+                    Channels = new[] { NotificationChannel.Email },
+                    RecipientEmail = user.Email,
+                    RecipientName = $"{user.FirstName} {user.LastName}",
+                    Type = NotificationType.BookingSubmitted,
+                    RecipientPhone = user.PhoneNumber,
+                    Data = new Dictionary<string, string>
+                    {
+                        { "EventCentreName", eventCentre.Name },
+                        { "BookingDate", bookingRecord.BookedFrom.ToString("yyyy-MM-dd") },
+                        { "BookingReference", bookingRecord.Id.ToString() }
+                    }
+                };
+                BackgroundJob.Enqueue(() => _notificationService.SendAsync(submissionNotification));
+
                 var freeResponse = new CreateBookingResponseDto
                 {
                     BookingId = bookingRecord.Id,
@@ -288,12 +309,14 @@ namespace Event_Management_System.API.Application.Implementation
             return APIResponse<object>.Create(HttpStatusCode.OK, "Request successful", response);
         }
 
-        public async Task<APIResponse<object>> UpdateBookingStatus(Guid userId, BookingStatus bookingStatus, Guid bookingId)
+        public async Task<APIResponse<object>> UpdateBookingStatusByAdmin(Guid userId, BookingStatus bookingStatus, Guid bookingId)
         {
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null)
                 return APIResponse<object>.Create(HttpStatusCode.BadRequest, "User does not exist", null);
             var booking = await _dbContext.Bookings
+                .Include(b => b.Organizer)
+                .Include(b => b.EventCentre)
                 .FirstOrDefaultAsync(b => b.Id.Equals(bookingId));
             if (booking == null)
                 return APIResponse<object>.Create(HttpStatusCode.NotFound, "Booking record does not exist", null, new Error { Message = "Booking record does not exist" });
@@ -321,7 +344,45 @@ namespace Event_Management_System.API.Application.Implementation
             };
             _dbContext.AuditLogs.Add(auditLog);
             await _dbContext.SaveChangesAsync();
-            return APIResponse<object>.Create(HttpStatusCode.OK, "Request successful", null);
+
+            if(booking.BookingStatus == BookingStatus.Confirmed)
+            {
+                var approvalNotification = new NotificationRequest
+                {
+                    Channels = new[] { NotificationChannel.Email },
+                    RecipientEmail = booking.Organizer.Email,
+                    RecipientName = $"{booking.Organizer.FirstName} {booking.Organizer.LastName}",
+                    Type = NotificationType.BookingConfirmed,
+                    RecipientPhone = booking.Organizer.PhoneNumber,
+                    Data = new Dictionary<string, string>
+                        {
+                            { "EventCentreName", booking.EventCentre.Name },
+                            { "BookingDate", booking.BookedFrom.ToString("yyyy-MM-dd") },
+                            { "BookingReference", booking.PaymentReference ?? "N/A" }
+                        }
+                };
+                BackgroundJob.Enqueue(() => _notificationService.SendAsync(approvalNotification));
+            }
+            else if (booking.BookingStatus == BookingStatus.Rejected)
+            {
+                var rejectionNotification = new NotificationRequest
+                {
+                    Channels = new[] { NotificationChannel.Email },
+                    RecipientEmail = booking.Organizer.Email,
+                    RecipientName = $"{booking.Organizer.FirstName} {booking.Organizer.LastName}",
+                    Type = NotificationType.BookingRejected,
+                    RecipientPhone = booking.Organizer.PhoneNumber,
+                    Data = new Dictionary<string, string>
+                        {
+                            { "EventCentreName", booking.EventCentre.Name },
+                            { "Reason", "Your booking did not meet the requirements" }
+                        }
+                };
+                BackgroundJob.Enqueue(() => _notificationService.SendAsync(rejectionNotification));
+            }
+            
+
+                return APIResponse<object>.Create(HttpStatusCode.OK, "Request successful", null);
 
         }
         public async Task<APIResponse<object>> DeleteBookingAsync(Guid userId, Guid bookingId)
@@ -417,6 +478,62 @@ namespace Event_Management_System.API.Application.Implementation
             }).ToList();
 
             return APIResponse<object>.Create(HttpStatusCode.OK, "Request successful", response);
+        }
+        public async Task<APIResponse<object>> CancelBookingAsync(Guid userId, Guid bookingId)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+            {
+                return APIResponse<object>.Create(HttpStatusCode.NotFound, "User does not exist", null, new Error { Message = "User does not exist" });
+            }
+            // check to see if the user is either an admin or the person who created the booking, they should only be the ones allowed to cancel the booking
+            var booking = await _dbContext.Bookings
+                .Include(b => b.Organizer)
+                .Include(b => b.EventCentre)
+                .FirstOrDefaultAsync(b => b.Id.Equals(bookingId));
+            if (booking == null)
+                {
+                return APIResponse<object>.Create(HttpStatusCode.NotFound, "Booking record does not exist", null, new Error { Message = "Booking record does not exist" });
+            }
+            var isAdmin = await _userManager.IsInRoleAsync(user, "Administrator");
+            if (!isAdmin && booking.OrganizerId != userId)
+                return APIResponse<object>.Create(HttpStatusCode.Forbidden, "You are not authorized to cancel this booking", null, new Error { Message = "You are not authorized to cancel this booking" });
+
+            if (booking.BookingStatus == BookingStatus.Cancelled)
+                return APIResponse<object>.Create(HttpStatusCode.BadRequest, "The booking is already cancelled", null, new Error { Message = "The booking is already cancelled" });
+
+            booking.BookingStatus = BookingStatus.Cancelled;
+            booking.ModifiedDate = DateTimeOffset.UtcNow;
+            var auditLog = new AuditLog
+            {
+                ObjectId = booking.Id,
+                ActionType = ActionType.Update,
+                UserId = user.Id,
+                Description = $"Cancelled booking for event center {booking.EventCentreId} from {booking.BookedFrom} to {booking.BookedTo} at {DateTimeOffset.UtcNow}",
+                CreatedDate = DateTimeOffset.UtcNow,
+                ModifiedDate = DateTimeOffset.UtcNow
+            };
+            _dbContext.AuditLogs.Add(auditLog);
+            await _dbContext.SaveChangesAsync();
+
+            var cancellationNotification = new NotificationRequest
+            {
+                Channels = new[] { NotificationChannel.Email },
+                RecipientEmail = booking.Organizer.Email,
+                RecipientName = $"{booking.Organizer.FirstName} {booking.Organizer.LastName}",
+                Type = NotificationType.BookingCancelled,
+                RecipientPhone = booking.Organizer.PhoneNumber,
+                Data = new Dictionary<string, string>
+                        {
+                            { "EventCentreName", booking.EventCentre.Name },
+                            { "Reason", "Booking was cancelled as requested" }
+                        }
+            };
+            BackgroundJob.Enqueue(() => _notificationService.SendAsync(cancellationNotification));
+            
+            return APIResponse<object>.Create(HttpStatusCode.OK, "Booking cancelled successfully", null);
+
+
         }
 
         #region Private methods
