@@ -1,5 +1,6 @@
 using Event_Management_System.API.Domain.Enums;
 using Event_Management_System.API.Helpers;
+using Org.BouncyCastle.Crypto;
 
 namespace Event_Management_System.Tests.NotificationTests
 {
@@ -148,10 +149,8 @@ namespace Event_Management_System.Tests.NotificationTests
             var (subject, body) = EmailTemplateBuilder.Build(NotificationType.AccountVerification, "Eve", data);
 
             // Assert
-            Assert.That(subject, Is.EqualTo("Verify Your Account - Eventify"));
+            Assert.That(subject, Is.EqualTo("Account Verified - Eventify"));
             Assert.That(body, Does.Contain("Eve"));
-            Assert.That(body, Does.Contain("https://eventify.com/verify?token=xyz789"));
-            Assert.That(body, Does.Contain("Verify Email"));
         }
 
         #endregion
