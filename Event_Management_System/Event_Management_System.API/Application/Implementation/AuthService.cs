@@ -83,7 +83,7 @@ namespace Event_Management_System.API.Application.Implementation
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             _logger.LogInformation($" ----> Email verification token generated for user '{user.Email}': {token}");
             var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-
+            var baseUrl = _configuration["AppSettings:BaseUrl"];
             var request = new NotificationRequest
             {
                 Channels = new[] { NotificationChannel.Email },
@@ -93,7 +93,7 @@ namespace Event_Management_System.API.Application.Implementation
                 Data = new Dictionary<string, string>
                 {
                     { "FirstName", user.FirstName },
-                    { "VerificationLink", $"https://yourapp.com/verify-email?token={encodedToken}&email={user.Email}" }
+                    { "VerificationLink", $"{baseUrl}/auth/verify-email?token={encodedToken}&email={user.Email}" }
                 }
             };
 
@@ -333,6 +333,7 @@ namespace Event_Management_System.API.Application.Implementation
             var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
             _logger.LogInformation($"--> Forgot password token generated for user '{email}': {token}");
+            var baseUrl = _configuration["AppSettings:BaseUrl"];
 
             var request = new NotificationRequest
             {
@@ -343,7 +344,7 @@ namespace Event_Management_System.API.Application.Implementation
                 Data = new Dictionary<string, string>
             {
                 { "FirstName", user.FirstName },
-                { "ResetLink", $"https://yourapp.com/reset-password?token={encodedToken}&email={user.Email}" }
+                { "ResetLink", $"{baseUrl}/auth/reset-password?token={encodedToken}&email={user.Email}" }
             }
             };
             BackgroundJob.Enqueue(() => _notificationService.SendAsync(request));
@@ -382,8 +383,9 @@ namespace Event_Management_System.API.Application.Implementation
 
                 var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                 var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+             var baseUrl = _configuration["AppSettings:BaseUrl"];
 
-                var request = new NotificationRequest
+            var request = new NotificationRequest
                 {
                     Channels = new[] { NotificationChannel.Email },
                     Type = NotificationType.EmailVerification,
@@ -392,7 +394,7 @@ namespace Event_Management_System.API.Application.Implementation
                     Data = new Dictionary<string, string>
                     {
                         { "FirstName", user.FirstName },
-                        { "VerificationLink", $"https://yourapp.com/verify-email?token={encodedToken}&email={user.Email}" }
+                        { "VerificationLink", $"{baseUrl}/auth/verify-email?token={encodedToken}&email={user.Email}" }
                     }
                 };
 
