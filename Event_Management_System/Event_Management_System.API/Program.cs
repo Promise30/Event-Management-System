@@ -149,15 +149,9 @@ builder.Services.AddHealthChecks()
         HealthCheckResult.Healthy("---> API is running"));
 
 // --- Add HealthChecks UI ---
-builder.Services.AddHealthChecksUI(options =>
-{
-    options.SetEvaluationTimeInSeconds(
-        builder.Configuration.GetValue<int>("HealthChecksUI:EvaluationTimeInSeconds"));
-    options.AddHealthCheckEndpoint(
-        "Event_Management_System_API",
-        builder.Configuration["HealthChecksUI:HealthChecks:0:Uri"]);
-})
-.AddInMemoryStorage();
+builder.Services
+    .AddHealthChecksUI()
+    .AddInMemoryStorage();
 
 // Swagger / OpenAPI (Swashbuckle)
 builder.Services.AddEndpointsApiExplorer();
