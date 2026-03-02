@@ -21,6 +21,7 @@ using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using PayStack.Net;
 using Serilog;
+using System;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -62,8 +63,15 @@ builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
-
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+        }));
 // Identity services
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 {
@@ -212,6 +220,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
+logger = app.Services.GetRequiredService<ILogger<Program>>();
+
 try
 {
     Log.Information("---------------------------- Starting up the application -----------------------");
@@ -228,8 +238,16 @@ try
     // Apply any pending migrations and create the database if it doesn't exist
     using (var scope = app.Services.CreateScope())
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        dbContext.Database.Migrate();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        try
+        {
+            context.Database.Migrate();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Database migration failed.");
+        }
     }
     app.UseHttpsRedirection();
 
@@ -273,7 +291,6 @@ try
     });
 
     // Log application start
-    logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("----> Application {ServiceName} started successfully at {Time}", serviceName, DateTime.UtcNow);
 
     app.Run();
