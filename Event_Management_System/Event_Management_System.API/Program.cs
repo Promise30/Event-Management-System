@@ -178,8 +178,8 @@ var app = builder.Build();
 try
 {
     Log.Information("---------------------------- Starting up the application -----------------------");
-    if (app.Environment.IsDevelopment())
-    {
+   // if (app.Environment.IsDevelopment())
+    //{
         app.UseSwagger();
         app.UseSwaggerUI(c =>
         {
@@ -187,13 +187,13 @@ try
             // To serve Swagger UI at root (https://localhost:7004/), uncomment next line:
             c.RoutePrefix = string.Empty;
         });
-    }
-    // Apply any pending migrations and create the database if it doesn't exist
-    //using (var scope = app.Services.CreateScope())
-    //{
-    //    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    //    dbContext.Database.Migrate();
     //}
+    // Apply any pending migrations and create the database if it doesn't exist
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        dbContext.Database.Migrate();
+    }
     app.UseHttpsRedirection();
 
     app.UseRouting();
