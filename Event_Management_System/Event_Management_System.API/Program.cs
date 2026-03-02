@@ -10,10 +10,12 @@ using Event_Management_System.API.Infrastructures;
 using Event_Management_System.API.Infrastructures.Repositories;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
@@ -21,6 +23,7 @@ using PayStack.Net;
 using Serilog;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 ILogger<Program> logger = null;
@@ -129,6 +132,22 @@ builder.Services.AddHangfire(config => config
 
 builder.Services.AddHangfireServer();
 
+// Health Check Configuration
+builder.Services.AddHealthChecks()
+    .AddCheck("Event_Management_System_API", () =>
+        HealthCheckResult.Healthy("---> API is running"));
+
+// --- Add HealthChecks UI ---
+builder.Services.AddHealthChecksUI(options =>
+{
+    options.SetEvaluationTimeInSeconds(
+        builder.Configuration.GetValue<int>("HealthChecksUI:EvaluationTimeInSeconds"));
+    options.AddHealthCheckEndpoint(
+        "Event_Management_System_API",
+        builder.Configuration["HealthChecksUI:HealthChecks:0:Uri"]);
+})
+.AddInMemoryStorage();
+
 // Swagger / OpenAPI (Swashbuckle)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -222,6 +241,33 @@ try
     app.MapControllers();
 
     app.UseHangfireDashboard("/hangfire"); // accessible at /hangfire
+
+    // --- Map Health Check Endpoints ---
+    app.MapHealthChecks("/health", new HealthCheckOptions     // default health endpoint
+    {
+        ResponseWriter = async (context, report) =>
+        {
+            context.Response.ContentType = "application/json";
+            var result = JsonSerializer.Serialize(new
+            {
+                status = report.Status.ToString(),
+                checks = report.Entries.Select(e => new
+                {
+                    name = e.Key,
+                    status = e.Value.Status.ToString(),
+                    description = e.Value.Description,
+                    duration = e.Value.Duration.ToString()
+                }),
+                totalDuration = report.TotalDuration.ToString()
+            });
+            await context.Response.WriteAsync(result);
+        }
+    });
+
+    app.MapHealthChecksUI(options =>
+    {
+        options.UIPath = "/health-ui";       // dashboard available at /health-ui
+    });
 
     // Log application start
     logger = app.Services.GetRequiredService<ILogger<Program>>();
