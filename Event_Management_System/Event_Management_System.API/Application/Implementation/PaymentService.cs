@@ -10,6 +10,9 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Event_Management_System.API.Domain.DTOs;
+using Hangfire;
+using Event_Management_System.API.Application.Interfaces;
 
 namespace Event_Management_System.API.Application.Implementation
 {
@@ -19,17 +22,20 @@ namespace Event_Management_System.API.Application.Implementation
         private readonly ILogger<PaystackPaymentService> _logger;
         private readonly PayStackApi _payStackApi;
         private readonly IConfiguration _configuration;
+        private readonly INotificationService _notificationService;
 
         public PaystackPaymentService(
             ApplicationDbContext dbContext,
             ILogger<PaystackPaymentService> logger,
             PayStackApi payStackApi,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            INotificationService notificationService)
         {
             _dbContext = dbContext;
             _logger = logger;
             _payStackApi = payStackApi;
             _configuration = configuration;
+            _notificationService = notificationService;
         }
 
         /// <inheritdoc/>
@@ -116,6 +122,7 @@ namespace Event_Management_System.API.Application.Implementation
             try
             {
                 var payment = await _dbContext.Payments
+                    .Include(p => p.User)
                     .FirstOrDefaultAsync(p => p.TransactionReference == reference);
 
                 if (payment == null)
@@ -154,6 +161,21 @@ namespace Event_Management_System.API.Application.Implementation
 
                     _logger.LogWarning("Payment verification failed for reference {Reference}", reference);
 
+                    // Send payment failed notification
+                    var failedNotification = new NotificationRequest
+                    {
+                        Channels = new[] { NotificationChannel.Email },
+                        Type = NotificationType.PaymentFailed,
+                        RecipientEmail = payment.CustomerEmail,
+                        RecipientName = $"{payment.User.FirstName} {payment.User.LastName}",
+                        Data = new Dictionary<string, string>
+                        {
+                            { "Amount", $"{payment.Currency} {payment.Amount:N2}" },
+                            { "Reason", "Payment verification failed" }
+                        }
+                    };
+                    BackgroundJob.Enqueue(() => _notificationService.SendAsync(failedNotification));
+
                     return APIResponse<PaymentVerificationDto>.Create(
                         HttpStatusCode.BadRequest,
                         "Payment verification failed",
@@ -172,6 +194,21 @@ namespace Event_Management_System.API.Application.Implementation
                 await _dbContext.SaveChangesAsync();
 
                 _logger.LogInformation("Payment verified successfully for reference {Reference}", reference);
+
+                // Send payment successful notification
+                var successNotification = new NotificationRequest
+                {
+                    Channels = new[] { NotificationChannel.Email },
+                    Type = NotificationType.PaymentSuccessful,
+                    RecipientEmail = payment.CustomerEmail,
+                    RecipientName = $"{payment.User.FirstName} {payment.User.LastName}",
+                    Data = new Dictionary<string, string>
+                    {
+                        { "Amount", $"{payment.Currency} {payment.Amount:N2}" },
+                        { "Reference", payment.TransactionReference }
+                    }
+                };
+                BackgroundJob.Enqueue(() => _notificationService.SendAsync(successNotification));
 
                 var result = new PaymentVerificationDto
                 {
@@ -342,7 +379,10 @@ namespace Event_Management_System.API.Application.Implementation
             {
                 if (payment.PaymentType == (int)PaymentType.Booking)
                 {
-                    var booking = await _dbContext.Bookings.FindAsync(payment.ReferenceId);
+                    var booking = await _dbContext.Bookings
+                        .Include(b => b.Organizer)
+                        .Include(b => b.EventCentre)
+                        .FirstOrDefaultAsync(b => b.Id == payment.ReferenceId);
                     if (booking != null)
                     {
                         booking.BookingStatus = BookingStatus.PendingApproval;
@@ -350,11 +390,52 @@ namespace Event_Management_System.API.Application.Implementation
                         booking.PaymentCompletedAt = payment.PaidAt;
                         booking.ModifiedDate = DateTimeOffset.UtcNow;
                         _dbContext.Bookings.Update(booking);
+
+                        // Send appropriate notification based on payment status
+                        if (payment.Status == PaymentStatus.Failed)
+                        {
+                            var failedNotification = new NotificationRequest
+                            {
+                                Channels = new[] { NotificationChannel.Email },
+                                Type = NotificationType.BookingPaymentFailed,
+                                RecipientEmail = booking.Organizer.Email,
+                                RecipientName = $"{booking.Organizer.FirstName} {booking.Organizer.LastName}",
+                                Data = new Dictionary<string, string>
+                                {
+                                    { "EventCentreName", booking.EventCentre.Name },
+                                    { "BookingReference", payment.TransactionReference }
+                                }
+                            };
+                            BackgroundJob.Enqueue(() => _notificationService.SendAsync(failedNotification));
+                        }
+                        else if (payment.Status == PaymentStatus.Successful)
+                        {
+                            // Send booking payment confirmed notification
+                            var bookingNotification = new NotificationRequest
+                            {
+                                Channels = new[] { NotificationChannel.Email },
+                                Type = NotificationType.BookingConfirmed,
+                                RecipientEmail = booking.Organizer.Email,
+                                RecipientName = $"{booking.Organizer.FirstName} {booking.Organizer.LastName}",
+                                RecipientPhone = booking.Organizer.PhoneNumber,
+                                Data = new Dictionary<string, string>
+                                {
+                                    { "EventCentreName", booking.EventCentre.Name },
+                                    { "BookingDate", booking.BookedFrom.ToString("yyyy-MM-dd") },
+                                    { "BookingReference", payment.TransactionReference }
+                                }
+                            };
+                            BackgroundJob.Enqueue(() => _notificationService.SendAsync(bookingNotification));
+                        }
                     }
                 }
                 else if (payment.PaymentType == (int)PaymentType.Ticket)
                 {
-                    var ticket = await _dbContext.Tickets.FindAsync(payment.ReferenceId);
+                    var ticket = await _dbContext.Tickets
+                        .Include(t => t.Attendee)
+                        .Include(t => t.TicketType)
+                            .ThenInclude(tt => tt.Event)
+                        .FirstOrDefaultAsync(t => t.Id == payment.ReferenceId);
                     if (ticket != null)
                     {
                         ticket.Status = TicketStatus.Active;
@@ -362,6 +443,23 @@ namespace Event_Management_System.API.Application.Implementation
                         ticket.PaymentCompletedAt = payment.PaidAt;
                         ticket.ModifiedDate = DateTimeOffset.UtcNow;
                         _dbContext.Tickets.Update(ticket);
+
+                        // Send ticket purchase confirmed notification
+                        var ticketNotification = new NotificationRequest
+                        {
+                            Channels = new[] { NotificationChannel.Email },
+                            Type = NotificationType.TicketPurchaseConfirmed,
+                            RecipientEmail = ticket.Attendee.Email,
+                            RecipientName = $"{ticket.Attendee.FirstName} {ticket.Attendee.LastName}",
+                            Data = new Dictionary<string, string>
+                            {
+                                { "EventName", ticket.TicketType.Event.Title },
+                                { "TicketType", ticket.TicketType.Name },
+                                { "Quantity", "1" },
+                                { "TotalAmount", $"{payment.Currency} {payment.Amount:N2}" }
+                            }
+                        };
+                        BackgroundJob.Enqueue(() => _notificationService.SendAsync(ticketNotification));
                     }
                 }
             }

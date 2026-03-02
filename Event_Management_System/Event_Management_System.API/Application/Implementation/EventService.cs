@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
+using Event_Management_System.API.Domain.DTOs;
+using Hangfire;
 
 namespace Event_Management_System.API.Application.Implementation
 {
@@ -20,14 +22,16 @@ namespace Event_Management_System.API.Application.Implementation
         private IMapper _mapper;
         private readonly ApplicationDbContext _dbContext;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly INotificationService _notificationService;
 
-        public EventService(ApplicationDbContext dbContext, IMapper mapper, ILogger<EventService> logger, UserManager<ApplicationUser> userManager, IDatabaseRepository<Event, Guid> databaseRepository)
+        public EventService(ApplicationDbContext dbContext, IMapper mapper, ILogger<EventService> logger, UserManager<ApplicationUser> userManager, IDatabaseRepository<Event, Guid> databaseRepository, INotificationService notificationService)
         {
             _dbContext = dbContext;
             _mapper = mapper;
             _logger = logger;
             _userManager = userManager;
             _databaseRepository = databaseRepository;
+            _notificationService = notificationService;
         }
         // Implement event-related methods here
         public async Task<APIResponse<EventDto>> CreateEventAsync(Guid userId, CreateEventDto createEventDto)
@@ -187,6 +191,32 @@ namespace Event_Management_System.API.Application.Implementation
                 _dbContext.Events.Update(existingEvent);
                 await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                // Get all ticket holders for this event to notify them
+                var ticketHolders = await _dbContext.Tickets
+                    .Include(t => t.Attendee)
+                    .Where(t => t.TicketType.EventId == eventId && t.Status == TicketStatus.Active)
+                    .Select(t => t.Attendee)
+                    .Distinct()
+                    .ToListAsync();
+
+                // Send event details updated notification to all ticket holders
+                foreach (var attendee in ticketHolders)
+                {
+                    var updateNotification = new NotificationRequest
+                    {
+                        Channels = new[] { NotificationChannel.Email },
+                        Type = NotificationType.EventDetailsUpdated,
+                        RecipientEmail = attendee.Email,
+                        RecipientName = $"{attendee.FirstName} {attendee.LastName}",
+                        Data = new Dictionary<string, string>
+                        {
+                            { "EventName", existingEvent.Title },
+                            { "Changes", "Event details have been updated. Please check the latest information." }
+                        }
+                    };
+                    BackgroundJob.Enqueue(() => _notificationService.SendAsync(updateNotification));
+                }
             }
             catch (Exception ex)
             {
@@ -202,26 +232,55 @@ namespace Event_Management_System.API.Application.Implementation
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null)
                 return APIResponse<object>.Create(HttpStatusCode.NotFound, "User does not exist", Enumerable.Empty<object>());
-            var existingEvent = await _dbContext.Events.FirstOrDefaultAsync(e => e.Id == eventId);
+            var existingEvent = await _dbContext.Events
+                .Include(e => e.Booking)
+                .FirstOrDefaultAsync(e => e.Id == eventId);
             if (existingEvent == null)
                 return APIResponse<object>.Create(HttpStatusCode.NotFound, "Event does not exist", Enumerable.Empty<object>());
 
             using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
+                // Get all ticket holders for this event to notify them before deletion
+                var ticketHolders = await _dbContext.Tickets
+                    .Include(t => t.Attendee)
+                    .Include(t => t.TicketType)
+                    .Where(t => t.TicketType.EventId == eventId && t.Status == TicketStatus.Active)
+                    .Select(t => t.Attendee)
+                    .Distinct()
+                    .ToListAsync();
+
                 _dbContext.Events.Remove(existingEvent);
-            var auditLog = new AuditLog
-            {
-                UserId = userId,
-                ObjectId = existingEvent.Id,
-                Description = $"Deleted event with id {existingEvent.Id} by {user.Email} at {DateTimeOffset.UtcNow}",
-                ActionType = ActionType.Delete,
-                CreatedDate = DateTimeOffset.UtcNow,
-                ModifiedDate = DateTimeOffset.UtcNow,
-            };
-            _dbContext.AuditLogs.Add(auditLog);
-            await _dbContext.SaveChangesAsync();
+                var auditLog = new AuditLog
+                {
+                    UserId = userId,
+                    ObjectId = existingEvent.Id,
+                    Description = $"Deleted event with id {existingEvent.Id} by {user.Email} at {DateTimeOffset.UtcNow}",
+                    ActionType = ActionType.Delete,
+                    CreatedDate = DateTimeOffset.UtcNow,
+                    ModifiedDate = DateTimeOffset.UtcNow,
+                };
+                _dbContext.AuditLogs.Add(auditLog);
+                await _dbContext.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                // Send event cancelled notification to all ticket holders
+                foreach (var attendee in ticketHolders)
+                {
+                    var cancelNotification = new NotificationRequest
+                    {
+                        Channels = new[] { NotificationChannel.Email },
+                        Type = NotificationType.EventCancelled,
+                        RecipientEmail = attendee.Email,
+                        RecipientName = $"{attendee.FirstName} {attendee.LastName}",
+                        Data = new Dictionary<string, string>
+                        {
+                            { "EventName", existingEvent.Title },
+                            { "Reason", "The event has been cancelled by the organizer" }
+                        }
+                    };
+                    BackgroundJob.Enqueue(() => _notificationService.SendAsync(cancelNotification));
+                }
             }
             catch (Exception ex)
             {

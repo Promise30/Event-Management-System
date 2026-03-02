@@ -8,6 +8,7 @@ using Event_Management_System.API.Extensions;
 using Event_Management_System.API.Helpers;
 using Event_Management_System.API.Infrastructures;
 using Event_Management_System.API.Infrastructures.Repositories;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -81,6 +82,11 @@ builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
 builder.Services.AddScoped<IOrganizerRequestService, OrganizerRequestService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
+// Notification Services
+builder.Services.Configure<EmailSettings>(configuration.GetSection(nameof(EmailSettings)));
+builder.Services.AddScoped<INotificationChannel, EmailNotificationChannel>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
 // Background Services
 builder.Services.AddHostedService<ExpireReservedTicketsService>();
 builder.Services.AddHostedService<ExpireReservedBookingService>();
@@ -113,6 +119,15 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
+
+// Hangfire Configuration
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHangfireServer();
 
 // Swagger / OpenAPI (Swashbuckle)
 builder.Services.AddEndpointsApiExplorer();
@@ -205,6 +220,8 @@ try
     app.UseAuthorization();
 
     app.MapControllers();
+
+    app.UseHangfireDashboard("/hangfire"); // accessible at /hangfire
 
     // Log application start
     logger = app.Services.GetRequiredService<ILogger<Program>>();

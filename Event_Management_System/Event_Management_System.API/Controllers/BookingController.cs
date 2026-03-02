@@ -109,7 +109,7 @@ namespace Event_Management_System.API.Controllers
         public async Task<IActionResult> UpdateBookingStatus([FromQuery] BookingStatus bookingStatus, [FromQuery] Guid bookingId)
         {
             var userId = GetUserId();
-            var result = await _bookingService.UpdateBookingStatus(userId, bookingStatus, bookingId);
+            var result = await _bookingService.UpdateBookingStatusByAdmin(userId, bookingStatus, bookingId);
             return StatusCode((int)result.StatusCode, result);
         }
 

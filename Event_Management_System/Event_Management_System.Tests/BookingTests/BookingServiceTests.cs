@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Event_Management_System.API.Application.Implementation;
+using Event_Management_System.API.Application.Interfaces;
 using Event_Management_System.API.Application.Payments;
 using Event_Management_System.API.Domain.Entities;
 using Event_Management_System.API.Infrastructures;
@@ -24,6 +25,7 @@ namespace Event_Management_System.Tests.BookingTests
         private Mock<UserManager<ApplicationUser>> _userManagerMock;
         private Mock<IMapper> _mapperMock;
         private Mock<IPaymentService> _paymentServiceMock;
+        private Mock<INotificationService> _notificationServiceMock;
 
         [SetUp]
         public void Setup()
@@ -37,7 +39,8 @@ namespace Event_Management_System.Tests.BookingTests
             _userManagerMock = new Mock<UserManager<ApplicationUser>>(userStoreMock.Object, null, null, null, null, null, null, null, null);
             _mapperMock = new Mock<IMapper>();
             _paymentServiceMock = new Mock<IPaymentService>();
-            _bookingService = new BookingService(_dbContext, _loggerMock.Object, _mapperMock.Object, _userManagerMock.Object, _paymentServiceMock.Object);
+            _notificationServiceMock = new Mock<INotificationService>();
+            _bookingService = new BookingService(_dbContext, _loggerMock.Object, _mapperMock.Object, _userManagerMock.Object, _paymentServiceMock.Object, _notificationServiceMock.Object);
         }
         [TearDown]
         public void TearDown()

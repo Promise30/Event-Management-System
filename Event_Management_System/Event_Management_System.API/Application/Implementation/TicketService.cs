@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using System.Net;
+using Event_Management_System.API.Domain.DTOs;
+using Hangfire;
 
 namespace Event_Management_System.API.Application.Implementation
 {
@@ -23,6 +25,7 @@ namespace Event_Management_System.API.Application.Implementation
         private readonly ILogger<TicketService> _logger;
         private readonly IDatabaseRepository<Ticket, Guid> _databaseRepository;
         private readonly IPaymentService _paymentService;
+        private readonly INotificationService _notificationService;
 
         public TicketService(
             ApplicationDbContext dbContext,
@@ -30,7 +33,8 @@ namespace Event_Management_System.API.Application.Implementation
             UserManager<ApplicationUser> userManager,
             ILogger<TicketService> logger,
             IDatabaseRepository<Ticket, Guid> databaseRepository,
-            IPaymentService paymentService)
+            IPaymentService paymentService,
+            INotificationService notificationService)
         {
             _dbContext = dbContext;
             _mapper = mapper;
@@ -38,6 +42,7 @@ namespace Event_Management_System.API.Application.Implementation
             _logger = logger;
             _databaseRepository = databaseRepository;
             _paymentService = paymentService;
+            _notificationService = notificationService;
         }
         public async Task<APIResponse<TicketDto>> GetTicketByIdAsync(Guid ticketId)
         {
@@ -125,6 +130,7 @@ namespace Event_Management_System.API.Application.Implementation
             var ticket = await _dbContext.Tickets
         .Include(t => t.TicketType)
         .ThenInclude(tt => tt.Event)
+        .Include(t => t.Attendee)
         .FirstOrDefaultAsync(t => t.Id == ticketId);
             if (ticket == null)
             {
@@ -184,6 +190,20 @@ namespace Event_Management_System.API.Application.Implementation
                 await _dbContext.SaveChangesAsync();
 
                 await transaction.CommitAsync();
+
+                // Send ticket cancellation notification
+                var cancelNotification = new NotificationRequest
+                {
+                    Channels = new[] { NotificationChannel.Email },
+                    Type = NotificationType.TicketPurchaseCancelled,
+                    RecipientEmail = ticket.Attendee.Email,
+                    RecipientName = $"{ticket.Attendee.FirstName} {ticket.Attendee.LastName}",
+                    Data = new Dictionary<string, string>
+                    {
+                        { "EventName", ticket.TicketType.Event.Title }
+                    }
+                };
+                BackgroundJob.Enqueue(() => _notificationService.SendAsync(cancelNotification));
 
                 return APIResponse<object>.Create(HttpStatusCode.NoContent, "Ticket cancelled successfully", null);
             }
@@ -279,7 +299,6 @@ namespace Event_Management_System.API.Application.Implementation
     //                    { "ticket_number", ticket.TicketNumber },
     //                    { "event_id", ticketType.EventId.ToString() },
     //                    { "ticket_type", ticketType.Name }
-    //                }
     //                };
 
     //                var paymentResult = await _paymentService.InitializePaymentAsync(initiatePaymentDto);
@@ -495,6 +514,24 @@ namespace Event_Management_System.API.Application.Implementation
 
                 // Free ticket
                 await transaction.CommitAsync();
+
+                // Send ticket purchase confirmation notification for free tickets
+                var freeTicketNotification = new NotificationRequest
+                {
+                    Channels = new[] { NotificationChannel.Email },
+                    Type = NotificationType.TicketPurchaseConfirmed,
+                    RecipientEmail = user.Email,
+                    RecipientName = $"{user.FirstName} {user.LastName}",
+                    RecipientPhone = user.PhoneNumber,
+                    Data = new Dictionary<string, string>
+                    {
+                        { "EventName", ticketType.Event.Title },
+                        { "TicketType", ticketType.Name },
+                        { "Quantity", "1" },
+                        { "TotalAmount", "Free" }
+                    }
+                };
+                BackgroundJob.Enqueue(() => _notificationService.SendAsync(freeTicketNotification));
 
                 var result = new CreateTicketResponseDto
                 {
