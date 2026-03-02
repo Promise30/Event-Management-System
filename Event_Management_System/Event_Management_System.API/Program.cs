@@ -35,6 +35,9 @@ var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 var serviceName = configuration["ServiceName"] ?? "EventManagementSystemAPI";
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
 // Configure logging: configures Serilog as the app logger
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(configuration)
